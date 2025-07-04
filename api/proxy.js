@@ -1,18 +1,60 @@
+// api/proxy.js - Proxy pentru userscript
 export default async function handler(req, res) {
-  const url = req.query.url;
-  if (!url) return res.status(400).send("Missing 'url' parameter");
+  // Configurare CORS
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+  
+  // Handle preflight requests
+  if (req.method === 'OPTIONS') {
+    res.status(200).end();
+    return;
+  }
 
   try {
-    const r = await fetch(url);
-    const contentType = r.headers.get('content-type') || 'text/plain';
-    const data = await r.text();
+    const { url, method = 'GET', headers = {}, body } = req.body || req.query;
+    
+    if (!url) {
+      return res.status(400).json({ error: 'URL este obligatoriu' });
+    }
 
-    res.setHeader("Access-Control-Allow-Origin", "*");
-    res.setHeader("Access-Control-Allow-Methods", "GET");
-    res.setHeader("Access-Control-Allow-Headers", "*");
-    res.setHeader("Content-Type", contentType);
-    res.status(r.status).send(data);
-  } catch (err) {
-    res.status(500).send("Proxy error: " + err.message);
+    // Validare URL pentru securitate
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+      return res.status(400).json({ error: 'URL invalid' });
+    }
+
+    // Configurare request
+    const fetchOptions = {
+      method: method.toUpperCase(),
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        ...headers
+      }
+    };
+
+    // Adaugă body pentru POST/PUT
+    if (body && ['POST', 'PUT', 'PATCH'].includes(method.toUpperCase())) {
+      fetchOptions.body = typeof body === 'string' ? body : JSON.stringify(body);
+    }
+
+    // Fă request-ul
+    const response = await fetch(url, fetchOptions);
+    const data = await response.text();
+    
+    // Returnează răspunsul
+    res.status(response.status).json({
+      status: response.status,
+      statusText: response.statusText,
+      headers: Object.fromEntries(response.headers.entries()),
+      data: data,
+      responseURL: response.url
+    });
+
+  } catch (error) {
+    console.error('Proxy error:', error);
+    res.status(500).json({ 
+      error: 'Eroare la procesarea request-ului',
+      message: error.message 
+    });
   }
 }
