@@ -1,0 +1,14 @@
+{
+  "name": "proxy-api",
+  "version": "1.0.0",
+  "description": "Proxy Vercel",
+  "main": "api/proxy.js",
+  "scripts": {
+    "dev": "vercel dev",
+    "deploy": "vercel --prod"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "vercel": "^latest"
+  }
+}
