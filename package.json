@@ -9,6 +9,6 @@
   },
   "dependencies": {},
   "devDependencies": {
-    "vercel": "^latest"
+    "vercel": "28.20.0"
   }
 }
