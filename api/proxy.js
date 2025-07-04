@@ -1,9 +1,9 @@
-// api/proxy.js - Proxy pentru userscript
+// api/proxy.js - Versiunea fixată pentru encoding UTF-8
 export default async function handler(req, res) {
   // Configurare CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, X-Api-Key');
   
   // Handle preflight requests
   if (req.method === 'OPTIONS') {
@@ -23,7 +23,7 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'URL invalid' });
     }
 
-    // Configurare request
+    // Configurare request cu encoding corect
     const fetchOptions = {
       method: method.toUpperCase(),
       headers: {
@@ -32,29 +32,58 @@ export default async function handler(req, res) {
       }
     };
 
-    // Adaugă body pentru POST/PUT
+    // Adaugă body pentru POST/PUT cu encoding UTF-8 corect
     if (body && ['POST', 'PUT', 'PATCH'].includes(method.toUpperCase())) {
-      fetchOptions.body = typeof body === 'string' ? body : JSON.stringify(body);
+      // Asigurăm că body-ul este un string valid UTF-8
+      if (typeof body === 'string') {
+        fetchOptions.body = body;
+      } else {
+        fetchOptions.body = JSON.stringify(body);
+      }
     }
+
+    console.log('Request details:', {
+      url: url,
+      method: method,
+      headers: fetchOptions.headers,
+      bodyLength: fetchOptions.body ? fetchOptions.body.length : 0
+    });
 
     // Fă request-ul
     const response = await fetch(url, fetchOptions);
-    const data = await response.text();
+    
+    // Citim răspunsul ca text pentru a evita probleme de encoding
+    const responseText = await response.text();
+    
+    // Construim headers object din response
+    const responseHeaders = {};
+    response.headers.forEach((value, key) => {
+      responseHeaders[key] = value;
+    });
     
     // Returnează răspunsul
-    res.status(response.status).json({
+    res.status(200).json({
       status: response.status,
       statusText: response.statusText,
-      headers: Object.fromEntries(response.headers.entries()),
-      data: data,
+      headers: responseHeaders,
+      data: responseText,
       responseURL: response.url
     });
 
   } catch (error) {
     console.error('Proxy error:', error);
+    
+    // Logging detaliat pentru debugging
+    console.error('Error details:', {
+      message: error.message,
+      stack: error.stack,
+      name: error.name
+    });
+    
     res.status(500).json({ 
       error: 'Eroare la procesarea request-ului',
-      message: error.message 
+      message: error.message,
+      type: error.name || 'UnknownError'
     });
   }
 }
